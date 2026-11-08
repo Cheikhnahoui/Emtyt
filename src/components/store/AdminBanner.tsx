@@ -33,10 +33,7 @@ export function AdminBanner({ showToVisitors = false }: { showToVisitors?: boole
         </div>
         <div className="flex flex-wrap gap-2">
           {state === "admin" ? (
-            <>
-              <Link href="/admin" className={`${btn} bg-gold text-white hover:opacity-90`}>لوحة التحكم</Link>
-              <Link href="/admin/orders" className={`${btn} border border-white/40 hover:bg-white/10`}>الطلبات</Link>
-            </>
+            <Link href="/admin" className={`${btn} bg-gold text-white hover:opacity-90`}>لوحة التحكم</Link>
           ) : (
             <Link href="/admin/login" className={`${btn} bg-gold text-white hover:opacity-90`}>دخول الإدارة</Link>
           )}
