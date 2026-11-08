@@ -16,7 +16,7 @@ export default async function Home() {
 
   return (
     <>
-      <AdminBanner />
+      <AdminBanner showToVisitors />
       <section className="relative overflow-hidden bg-gradient-to-b from-rose-soft/70 to-ivory">
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-14 md:grid-cols-2 md:py-24">
           <div className="animate-fade-up space-y-6">

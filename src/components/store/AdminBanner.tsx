@@ -6,9 +6,6 @@ import { createClient } from "@/lib/supabase/client";
 
 type State = "loading" | "admin" | "visitor";
 
-/** Big banner at the top of the home page.
- *  - Logged-in admin: shortcuts to the dashboard, orders and add-product.
- *  - Everyone else: hidden, unless showToVisitors is true (then a "login" banner is shown). */
 export function AdminBanner({ showToVisitors = false }: { showToVisitors?: boolean }) {
   const [state, setState] = useState<State>("loading");
 
