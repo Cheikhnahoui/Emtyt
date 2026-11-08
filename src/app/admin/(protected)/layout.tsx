@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { signOut } from "@/actions/auth";
 import { requireAdmin } from "@/lib/auth";
+import { toDisplayName } from "@/lib/login";
 
 export const metadata = { title: "لوحة التحكم", robots: { index: false, follow: false } };
 
@@ -10,6 +11,7 @@ const nav = [
   { href: "/admin/products", label: "المنتجات" },
   { href: "/admin/categories", label: "التصنيفات" },
   { href: "/admin/settings", label: "إعدادات المتجر" },
+  { href: "/admin/password", label: "كلمة المرور" },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -25,7 +27,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           {nav.map((n) => <Link key={n.href} href={n.href} className="whitespace-nowrap rounded-xl px-4 py-2 text-sm transition hover:bg-white/10">{n.label}</Link>)}
           <Link href="/" target="_blank" className="whitespace-nowrap rounded-xl px-4 py-2 text-sm text-gold-light transition hover:bg-white/10">عرض المتجر ↗</Link>
         </nav>
-        <p className="hidden px-6 pt-4 text-xs opacity-60 md:block" dir="ltr">{user.email}</p>
+        <p className="hidden px-6 pt-4 text-xs opacity-60 md:block" dir="ltr">{toDisplayName(user.email)}</p>
       </aside>
       <main className="min-w-0 flex-1 p-4 md:p-8">{children}</main>
     </div>
