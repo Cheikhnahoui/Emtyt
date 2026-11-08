@@ -39,11 +39,11 @@ export async function getProducts(o: { category?: string; q?: string; offers?: b
 export async function getBestSellers(limit = 8) {
   const db = publicClient();
   const { data: ids } = await db.rpc("best_sellers", { p_limit: limit });
-  const list = (ids ?? []).map((r: any) => r.product_id as string);
+  const list: string[] = (ids ?? []).map((r: any) => r.product_id as string);
   if (!list.length) return [];
   const { data } = await db.from("products").select(SELECT).in("id", list);
   const byId = new Map((data ?? []).map((p: any) => [p.id, norm(p)]));
-  return list.map((id) => byId.get(id)).filter(Boolean) as StoreProduct[];
+  return list.map((id: string) => byId.get(id)).filter(Boolean) as StoreProduct[];
 }
 
 export async function getProductBySlug(slug: string) {
