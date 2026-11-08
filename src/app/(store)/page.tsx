@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { AdminBanner } from "@/components/store/AdminBanner";
 import { Section } from "@/components/store/ProductGrid";
 import { getBestSellers, getCategories, getProducts, getSettings } from "@/lib/data";
 
@@ -15,6 +16,7 @@ export default async function Home() {
 
   return (
     <>
+      <AdminBanner />
       <section className="relative overflow-hidden bg-gradient-to-b from-rose-soft/70 to-ivory">
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-14 md:grid-cols-2 md:py-24">
           <div className="animate-fade-up space-y-6">
