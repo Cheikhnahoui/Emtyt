@@ -12,7 +12,7 @@ export default async function Home() {
     getProducts({ featured: true, limit: 8 }), getProducts({ limit: 8 }), getBestSellers(8),
     getProducts({ offers: true, limit: 8 }),
   ]);
-  const heroImg = (featured[0] ?? newest[0])?.product_images[0]?.url;
+  const storeName = settings.store_name ?? "Emteyt";
 
   return (
     <>
@@ -21,7 +21,7 @@ export default async function Home() {
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-14 md:grid-cols-2 md:py-24">
           <div className="animate-fade-up space-y-6">
             <p className="text-sm tracking-widest text-gold">ملاحف وأزياء نسائية موريتانية</p>
-            <h1 className="font-display text-5xl leading-tight text-plum md:text-7xl">{settings.store_name ?? "Emteyt"}</h1>
+            <h1 className="font-display text-5xl leading-tight text-plum md:text-7xl">{storeName}</h1>
             <p className="max-w-md leading-relaxed text-plum/80">
               {settings.description || "أناقة الملحفة الموريتانية بلمسة عصرية. تشكيلة مختارة بعناية من الملاحف والأزياء والإكسسوارات."}
             </p>
@@ -31,8 +31,14 @@ export default async function Home() {
             </div>
           </div>
           <div className="animate-fade-up mx-auto w-full max-w-sm [animation-delay:150ms]">
-            <div className="relative aspect-[3/4] overflow-hidden rounded-t-[999px] rounded-b-3xl bg-gradient-to-br from-gold-light to-plum shadow-2xl ring-8 ring-white/60">
-              {heroImg && <Image src={heroImg} alt="" fill priority sizes="(max-width:768px) 80vw, 400px" className="object-cover" />}
+            <div className="relative aspect-[3/4] overflow-hidden rounded-t-[999px] rounded-b-3xl bg-white shadow-2xl ring-8 ring-white/60">
+              {settings.logo_url ? (
+                <Image src={settings.logo_url} alt={storeName} fill priority sizes="(max-width:768px) 80vw, 400px" className="object-contain p-10" />
+              ) : (
+                <div className="grid h-full place-items-center bg-gradient-to-br from-gold-light to-plum">
+                  <span className="font-display text-5xl text-white">{storeName}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
