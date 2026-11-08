@@ -7,6 +7,6 @@ export default {
   images: {
     remotePatterns: [{ protocol: "https", hostname: host, pathname: "/storage/v1/object/public/**" }],
   },
-  // Allow product image uploads (up to 8 images x 5 MB) through server actions
-  experimental: { serverActions: { bodySizeLimit: "45mb" } },
+  // Images are uploaded by the browser straight to Supabase Storage, so server action bodies stay tiny.
+  experimental: { serverActions: { bodySizeLimit: "2mb" } },
 };

@@ -1,4 +1,5 @@
 import { saveSettings } from "@/actions/settings";
+import { LogoField } from "@/components/admin/LogoField";
 import { Field, btn, card, input } from "@/components/admin/ui";
 import { createClient } from "@/lib/supabase/server";
 
@@ -19,11 +20,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="اسم المتجر *"><input className={input} name="store_name" required defaultValue={s?.store_name ?? "Emteyt"} /></Field>
           <Field label="الشعار" hint="JPG أو PNG أو WebP">
-            <div className="flex items-center gap-3">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              {s?.logo_url && <img src={s.logo_url} alt="الشعار الحالي" className="h-12 w-12 rounded-full object-cover" />}
-              <input className={input} type="file" name="logo" accept="image/jpeg,image/png,image/webp" />
-            </div>
+            <LogoField current={s?.logo_url ?? null} />
           </Field>
           <Field label="رقم الهاتف"><input className={input} name="phone" dir="ltr" defaultValue={s?.phone ?? ""} /></Field>
           <Field label="رقم واتساب" hint="بالصيغة الدولية دون + أو مسافات، مثال: 22212345678">

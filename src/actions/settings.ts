@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
-import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_BYTES } from "@/lib/validators";
+import { isOwnImageUrl } from "@/lib/storage";
 
 const url = z.string().trim().url().or(z.literal(""));
 const schema = z.object({
@@ -28,14 +28,11 @@ export async function saveSettings(fd: FormData) {
 
   const update: Record<string, unknown> = { ...p.data };
 
-  const logo = fd.get("logo");
-  if (logo instanceof File && logo.size > 0) {
-    if (!ALLOWED_IMAGE_TYPES.includes(logo.type) || logo.size > MAX_IMAGE_BYTES) back("error=" + encodeURIComponent("صورة الشعار غير صالحة (JPG/PNG/WebP حتى 5 ميغابايت)."));
-    const ext = logo.type === "image/jpeg" ? "jpg" : logo.type.split("/")[1];
-    const path = `logos/${crypto.randomUUID()}.${ext}`;
-    const up = await supabase.storage.from("product-images").upload(path, logo, { contentType: logo.type });
-    if (up.error) { console.error(up.error); back("error=" + encodeURIComponent("تعذر رفع الشعار.")); }
-    update.logo_url = supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl;
+  // The logo is uploaded by the browser (see LogoField); we only accept a URL inside our own bucket.
+  const logoUrl = get("logo_url").trim();
+  if (logoUrl) {
+    if (!isOwnImageUrl(logoUrl)) back("error=" + encodeURIComponent("رابط الشعار غير صالح."));
+    update.logo_url = logoUrl;
   }
 
   const { error } = await supabase.from("settings").update(update).eq("id", 1);

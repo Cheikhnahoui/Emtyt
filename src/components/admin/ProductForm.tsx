@@ -1,28 +1,68 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useTransition } from "react";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { saveProduct } from "@/actions/products";
+import { createClient } from "@/lib/supabase/client";
 import type { Category, FormState, Product } from "@/lib/types";
+import { MAX_IMAGES, prepareAndUpload, removeUploaded } from "@/lib/upload";
 import { Field, btn, btnGhost, input } from "./ui";
 
 export function ProductForm({ categories, product }: { categories: Category[]; product?: Product }) {
   const [state, action, pending] = useActionState<FormState, FormData>(saveProduct, {});
   const [, startTransition] = useTransition();
+  const [progress, setProgress] = useState("");
+  const [clientError, setClientError] = useState("");
+  const uploaded = useRef<string[]>([]); // URLs uploaded for the save in flight (cleaned up if it fails)
   const err = (k: string) => state.fieldErrors?.[k]?.[0];
   const images = [...(product?.product_images ?? [])].sort((a, b) => a.sort_order - b.sort_order);
 
+  // If the server rejects the save, delete the photos we just uploaded so they don't pile up in storage.
+  useEffect(() => {
+    if (state.error && uploaded.current.length) {
+      removeUploaded(createClient(), uploaded.current);
+      uploaded.current = [];
+    }
+  }, [state]);
+
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault(); // keeps typed values if validation fails (React 19 would reset the form)
+    const fd = new FormData(e.currentTarget);
+    setClientError("");
+
+    // Photos never go through our server: shrink them here and upload straight to Supabase Storage.
+    const files = fd.getAll("images").filter((f): f is File => f instanceof File && f.size > 0);
+    fd.delete("images");
+    if (images.length - fd.getAll("delete_image").length + files.length > MAX_IMAGES) {
+      setClientError(`الحد الأقصى ${MAX_IMAGES} صور للمنتج.`);
+      return;
+    }
+
+    const urls: string[] = [];
+    if (files.length) {
+      const supabase = createClient();
+      try {
+        for (let i = 0; i < files.length; i++) {
+          setProgress(`جارٍ رفع الصور ${i + 1}/${files.length}…`);
+          urls.push(await prepareAndUpload(supabase, files[i]));
+        }
+      } catch (error) {
+        await removeUploaded(supabase, urls);
+        setProgress("");
+        setClientError(error instanceof Error ? error.message : "تعذر رفع الصور.");
+        return;
+      }
+      setProgress("");
+    }
+    uploaded.current = urls;
+    urls.forEach((u) => fd.append("image_urls", u));
+    startTransition(() => action(fd));
+  }
+
   return (
-    <form
-      className="space-y-6"
-      onSubmit={(e) => {
-        e.preventDefault(); // keeps typed values if validation fails (React 19 would reset the form)
-        const fd = new FormData(e.currentTarget);
-        startTransition(() => action(fd));
-      }}
-    >
+    <form className="space-y-6" onSubmit={onSubmit}>
       {product && <input type="hidden" name="id" value={product.id} />}
-      {state.error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{state.error}</p>}
+      {(clientError || state.error) && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{clientError || state.error}</p>}
 
       <div className="grid gap-4 md:grid-cols-2">
         <Field label="اسم المنتج *" error={err("name_ar")}>
@@ -82,11 +122,11 @@ export function ProductForm({ categories, product }: { categories: Category[]; p
           </ul>
         )}
         <input className={input} type="file" name="images" multiple accept="image/jpeg,image/png,image/webp" />
-        <p className="text-xs text-plum/60">JPG أو PNG أو WebP، حتى 5 ميغابايت للصورة، وبحد أقصى 8 صور للمنتج.</p>
+        <p className="text-xs text-plum/60">JPG أو PNG أو WebP. تُصغَّر الصور تلقائيًا قبل الرفع، وبحد أقصى 8 صور للمنتج.</p>
       </fieldset>
 
       <div className="flex gap-3">
-        <button className={btn} disabled={pending}>{pending ? "جارٍ الحفظ…" : "حفظ المنتج"}</button>
+        <button className={btn} disabled={pending || !!progress}>{progress || (pending ? "جارٍ الحفظ…" : "حفظ المنتج")}</button>
         <Link href="/admin/products" className={btnGhost}>إلغاء</Link>
       </div>
     </form>

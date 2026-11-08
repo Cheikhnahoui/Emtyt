@@ -4,14 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { slugify } from "@/lib/format";
+import { BUCKET, isOwnImageUrl, storagePath } from "@/lib/storage";
 import type { FormState } from "@/lib/types";
-import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_BYTES, productSchema } from "@/lib/validators";
+import { productSchema } from "@/lib/validators";
 
-const BUCKET = "product-images";
 const MAX_IMAGES = 8;
 const txt = (v: FormDataEntryValue | null) => String(v ?? "").trim();
 const list = (v: FormDataEntryValue | null) => txt(v).split(/[,،\n]/).map((s) => s.trim()).filter(Boolean);
-const storagePath = (url: string) => decodeURIComponent(url.split(`/${BUCKET}/`)[1] ?? "");
 
 export async function saveProduct(_: FormState, fd: FormData): Promise<FormState> {
   const { supabase } = await requireAdmin();
@@ -32,13 +31,20 @@ export async function saveProduct(_: FormState, fd: FormData): Promise<FormState
   });
   if (!parsed.success) return { error: "تحقق من الحقول المحددة.", fieldErrors: parsed.error.flatten().fieldErrors };
 
-  // Validate every file before touching storage
-  const files = fd.getAll("images").filter((f): f is File => f instanceof File && f.size > 0);
-  for (const f of files) {
-    if (!ALLOWED_IMAGE_TYPES.includes(f.type)) return { error: "نوع الصورة غير مسموح. استخدم JPG أو PNG أو WebP." };
-    if (f.size > MAX_IMAGE_BYTES) return { error: "حجم إحدى الصور يتجاوز 5 ميغابايت." };
-  }
+  // Photos are compressed and uploaded by the browser straight to Supabase Storage;
+  // the server only receives their public URLs (keeps requests tiny, far below Vercel's 4.5 MB limit).
+  const newUrls = fd.getAll("image_urls").map(String).filter(Boolean);
+  if (newUrls.some((u) => !isOwnImageUrl(u))) return { error: "رابط صورة غير صالح." };
   const toDelete = fd.getAll("delete_image").map(String);
+
+  // Check the image limit BEFORE changing anything, so a failure never leaves a half-saved product.
+  let existing: { id: string; url: string; sort_order: number }[] = [];
+  if (id) {
+    const { data } = await supabase.from("product_images").select("id,url,sort_order").eq("product_id", id);
+    existing = data ?? [];
+  }
+  const kept = existing.filter((r) => !toDelete.includes(r.id));
+  if (kept.length + newUrls.length > MAX_IMAGES) return { error: `الحد الأقصى ${MAX_IMAGES} صور للمنتج.` };
 
   try {
     let productId = id;
@@ -53,28 +59,18 @@ export async function saveProduct(_: FormState, fd: FormData): Promise<FormState
     }
 
     // Remove images the admin ticked
-    if (id && toDelete.length) {
-      const { data: rows } = await supabase.from("product_images").select("id,url").eq("product_id", id).in("id", toDelete);
-      if (rows?.length) {
-        await supabase.storage.from(BUCKET).remove(rows.map((r) => storagePath(r.url)).filter(Boolean));
-        await supabase.from("product_images").delete().in("id", rows.map((r) => r.id));
-      }
+    const removing = existing.filter((r) => toDelete.includes(r.id));
+    if (removing.length) {
+      await supabase.storage.from(BUCKET).remove(removing.map((r) => storagePath(r.url)).filter(Boolean));
+      await supabase.from("product_images").delete().in("id", removing.map((r) => r.id));
     }
 
-    // Upload new images
-    if (files.length) {
-      const { data: existing } = await supabase.from("product_images").select("sort_order").eq("product_id", productId!);
-      if ((existing?.length ?? 0) + files.length > MAX_IMAGES) return { error: `الحد الأقصى ${MAX_IMAGES} صور للمنتج.` };
-      let order = Math.max(-1, ...(existing ?? []).map((r) => r.sort_order)) + 1;
-      for (const f of files) {
-        const ext = f.type === "image/jpeg" ? "jpg" : f.type.split("/")[1];
-        const path = `${productId}/${crypto.randomUUID()}.${ext}`;
-        const up = await supabase.storage.from(BUCKET).upload(path, f, { contentType: f.type });
-        if (up.error) throw up.error;
-        const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
-        const ins = await supabase.from("product_images").insert({ product_id: productId, url: pub.publicUrl, sort_order: order++ });
-        if (ins.error) throw ins.error;
-      }
+    // Link the newly uploaded images
+    if (newUrls.length) {
+      let order = Math.max(-1, ...kept.map((r) => r.sort_order)) + 1;
+      const { error } = await supabase.from("product_images")
+        .insert(newUrls.map((url) => ({ product_id: productId, url, sort_order: order++ })));
+      if (error) throw error;
     }
   } catch (e) {
     console.error(e);
