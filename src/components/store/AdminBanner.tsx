@@ -36,7 +36,6 @@ export function AdminBanner({ showToVisitors = false }: { showToVisitors?: boole
             <>
               <Link href="/admin" className={`${btn} bg-gold text-white hover:opacity-90`}>لوحة التحكم</Link>
               <Link href="/admin/orders" className={`${btn} border border-white/40 hover:bg-white/10`}>الطلبات</Link>
-              <Link href="/admin/products/new" className={`${btn} border border-white/40 hover:bg-white/10`}>+ منتج جديد</Link>
             </>
           ) : (
             <Link href="/admin/login" className={`${btn} bg-gold text-white hover:opacity-90`}>دخول الإدارة</Link>
